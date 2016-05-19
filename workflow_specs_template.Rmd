@@ -9,6 +9,7 @@ SELECT count(*)
 FROM wf_instance 
 WHERE wf_status in ('I', 'R', 'A', 'P')
 ```
+
     - Expectation: test < 500
     - Result:
 
@@ -21,6 +22,7 @@ FROM wf_instance
 WHERE wf_start <= DATEADD(year, -1, GETDATE())
 and wf_status in ('I', 'R', 'A', 'P')
 ```
+
     - Expectation: test = 0 
     - Result:
 
@@ -37,6 +39,7 @@ FROM
     ON t1.wf_model_id = t2.wf_model_id
 WHERE t1.wf_version = t2.wf_version
 ```
+
     - Expectation: test = 0
     - Result:
 
@@ -54,6 +57,7 @@ AND wf_key NOT IN (
     WHERE wf_status = 'P'
 )
 ```
+
     - Expectation: test = 0
     - Result:
 
@@ -66,6 +70,7 @@ select count(*)
 from us_usno_mstr
 where us_wf_enable like '%W%'
 ```
+
     - Expectation: test = 0
     - Result: 
 
@@ -77,6 +82,7 @@ where us_wf_enable like '%W%'
 SELECT DISTINCT us_misc_flags11
 FROM us_usno_mstr
 ```
+
     - Expectation: test should not have null or blank value
     - Result:
 
@@ -88,6 +94,7 @@ FROM us_usno_mstr
 SELECT DISTINCT us_misc_flags12
 FROM us_usno_mstr
 ```
+
     - Expectation: test should not have nullor blank value
     - Result:
 
@@ -98,6 +105,7 @@ SELECT DISTINCT wf_engine
 FROM wf_instance
 WHERE wf_status IN ('I', 'R', 'A', 'P')
 ```
+
     - Expectation: test should only return one row with a server address
     - Result:
 
