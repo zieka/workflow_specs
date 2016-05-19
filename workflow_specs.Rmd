@@ -1,12 +1,12 @@
 ---
-output: pdf_document
+output: html_document
 ---
 ## Workflow Spec Report
 
 ```{r, echo=FALSE, warning=FALSE,results='hide',message=FALSE}
-connection_name <- "KyleODBC"
-user <- "reports"
-password <- "EWQ321#@!"
+connection_name <- Sys.getenv("ODBC_NAME")
+user <- Sys.getenv("ODBC_USER")
+password <- Sys.getenv("ODBC_PASS")
 
 library(pander)
 library(RODBC)
