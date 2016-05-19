@@ -1,0 +1,382 @@
+---
+output: pdf_document
+---
+## Workflow Spec Report
+
+```{r, echo=FALSE, warning=FALSE,results='hide',message=FALSE}
+connection_name <- "KyleODBC"
+user <- "reports"
+password <- "EWQ321#@!"
+
+library(pander)
+library(RODBC)
+
+channel <- odbcConnect(connection_name,
+                       uid=user,
+                       pwd=password,
+                       rows_at_time = 1)
+
+sqlQuery(channel, "USE support_finance")
+```
+
+
+1. Workflow should have less than 500 instances in progress
+    - Test:
+```sql
+SELECT count(*) 
+FROM wf_instance 
+WHERE wf_status in ('I', 'R', 'A', 'P')
+```
+    - Expectation: test < 500
+
+
+```{r, echo=FALSE}
+spec1 <- sqlQuery(channel,"
+SELECT count(*) 
+FROM wf_instance 
+WHERE wf_status in ('I', 'R', 'A', 'P')
+")
+
+result <- "FAILED"
+result_color <- "pink"
+if (spec1 < 500) {
+  result <- "PASS"
+  result_color <- "lightgreen"
+}
+```
+
+    - <span style="background-color:`r result_color`">
+    Result: `r result` ; test = `r spec1`
+    </span>
+
+
+2. Workflow should have no instances in progress that where started before one year ago
+    - Test:
+```sql
+SELECT count(*) 
+FROM wf_instance 
+WHERE wf_start <= DATEADD(year, -1, GETDATE())
+and wf_status in ('I', 'R', 'A', 'P')
+```
+    - Expectation: test = 0 
+
+
+```{r, echo=FALSE}
+spec2 <- sqlQuery(channel,"
+SELECT count(*) 
+FROM wf_instance 
+WHERE wf_start <= DATEADD(year, -1, GETDATE()) 
+and wf_status in ('I', 'R', 'A', 'P')
+")
+
+result <- "FAILED"
+result_color <- "pink"
+if (spec2 == 0 ) {
+  result <- "PASS"
+  result_color <- "lightgreen"
+}
+```
+
+    - <span style="background-color:`r result_color`">
+    Result: `r result` ; test = `r spec2`
+    </span>
+
+
+
+3. Workflow should have no in progress instances on inactive models
+    - Test:
+```sql
+SELECT count(t2.unique_key)
+FROM
+    (SELECT wf_model_id, wf_version FROM wf_model WHERE wf_status <> 'A') AS t1
+    INNER JOIN
+    (SELECT * FROM wf_instance WHERE wf_status in ('I', 'R', 'A', 'P')) AS  t2
+    ON t1.wf_model_id = t2.wf_model_id
+WHERE t1.wf_version = t2.wf_version
+```
+    - Expectation: test = 0
+
+
+```{r, echo=FALSE}
+spec3 <- sqlQuery(channel,"
+SELECT count(t2.unique_key)
+FROM
+    (SELECT wf_model_id, wf_version FROM wf_model WHERE wf_status <> 'A') AS t1
+    INNER JOIN
+    (SELECT * FROM wf_instance WHERE wf_status in ('I', 'R', 'A', 'P')) AS  t2
+    ON t1.wf_model_id = t2.wf_model_id
+WHERE t1.wf_version = t2.wf_version
+")
+
+result <- "FAILED"
+result_color <- "pink"
+if (spec3 == 0) {
+  result <- "PASS"
+  result_color <- "lightgreen"
+}
+```
+
+    - <span style="background-color:`r result_color`">
+    Result: `r result` ; test = `r spec3`
+    </span>
+
+
+
+4. Workflow instances in progress should have at least one pending history record
+    - Test:
+```sql
+SELECT count(*)
+FROM wf_instance
+WHERE wf_status = 'I'
+AND wf_key NOT IN (
+    SELECT DISTINCT wf_key
+    FROM wf_history
+    WHERE wf_status = 'P'
+)
+```
+    - Expectation: test = 0
+
+
+```{r, echo=FALSE}
+spec4 <- sqlQuery(channel,"
+SELECT count(*)
+FROM wf_instance
+WHERE wf_status = 'I'
+AND wf_key NOT IN (
+    SELECT DISTINCT wf_key
+    FROM wf_history
+    WHERE wf_status = 'P'
+)
+")
+
+result <- "FAILED"
+result_color <- "pink"
+if (spec4 == 0) {
+  result <- "PASS"
+  result_color <- "lightgreen"
+}
+```
+
+    - <span style="background-color:`r result_color`">
+    Result: `r result` ; test = `r spec4`
+    </span>
+
+
+
+5. Workflow Users should be enabled using 'Y' and not 'W'
+    - Test:
+```sql
+select count(*)
+from us_usno_mstr
+where us_wf_enable like '%W%'
+```
+    - Expectation: test = 0
+
+
+```{r, echo=FALSE}
+spec5 <- sqlQuery(channel,"
+select count(*)
+from us_usno_mstr
+where us_wf_enable like '%W%'
+")
+
+result <- "FAILED"
+result_color <- "pink"
+if (spec5 == 0) {
+  result <- "PASS"
+  result_color <- "lightgreen"
+}
+```
+
+    - <span style="background-color:`r result_color`">
+    Result: `r result` ; test = `r spec5`
+    </span>
+
+
+
+6. Users should have a default GL ledger
+    - Test:
+```sql
+SELECT DISTINCT us_misc_flags11
+FROM us_usno_mstr
+```
+    - Expectation: test should not have null or blank value
+
+
+```{r, echo=FALSE}
+spec6 <- sqlQuery(channel,"
+SELECT DISTINCT us_misc_flags11
+FROM us_usno_mstr
+")
+
+result <- "PASS"
+result_color <- "lightgreen"
+
+if (any(is.na(spec6$us_misc_flags11)) == TRUE) {
+  result <- "FAILED"
+  result_color <- "pink"
+}
+
+
+if (any(grep("[[:blank:]]",spec6$us_misc_flags11)) == TRUE) {
+  result <- "FAILED"
+  result_color <- "pink"
+}
+
+```
+
+    - <span style="background-color:`r result_color`">
+    Result: `r result` ; test found: 
+        ```{r, echo=FALSE} 
+        spec6
+        ```
+    </span>
+
+
+
+7. Users should have a default JL ledger
+    - Test:
+```sql
+SELECT DISTINCT us_misc_flags12
+FROM us_usno_mstr
+```
+    - Expectation: test should not have nullor blank value
+
+
+```{r, echo=FALSE}
+spec7 <- sqlQuery(channel,"
+SELECT DISTINCT us_misc_flags12
+FROM us_usno_mstr
+")
+
+result <- "PASS"
+result_color <- "lightgreen"
+
+if (any(is.na(spec7$us_misc_flags12)) == TRUE) {
+  result <- "FAILED"
+  result_color <- "pink"
+}
+
+
+if (any(grep("[[:blank:]]",spec7$us_misc_flags12)) == TRUE) {
+  result <- "FAILED"
+  result_color <- "pink"
+}
+
+```
+
+    - <span style="background-color:`r result_color`">
+    Result: `r result` ; test found: 
+        ```{r, echo=FALSE} 
+        spec7
+        ```
+    </span>
+
+8. There should only be one distinct workflow engine, 'NONE', and/or null.
+    - Test:
+```sql
+SELECT DISTINCT wf_engine
+FROM wf_instance
+WHERE wf_status IN ('I', 'R', 'A', 'P')
+```
+    - Expectation: test should only return one row with a server address
+
+
+```{r, echo=FALSE}
+spec8 <- sqlQuery(channel,"
+SELECT DISTINCT wf_engine
+FROM wf_instance
+WHERE wf_status IN ('I', 'R', 'A', 'P')
+")
+
+result <- "PASS"
+result_color <- "lightgreen"
+
+row_count <- grep("[A-Za-z0-9]", spec8$wf_engine, value=TRUE)
+row_count <- subset(row_count, !grepl( "^NONE", row_count), drop = TRUE )
+row_count <- NROW(row_count)
+
+if (row_count > 1) {
+  result <- "FAILED"
+  result_color <- "pink"
+}
+
+```
+
+    - <span style="background-color:`r result_color`">
+    Result: `r result` ; test found: 
+        ```{r, echo=FALSE}
+        spec8
+        ```
+    </span>
+
+### Analytics
+#### Overall Active Instances
+```{r, echo=FALSE, warning=FALSE}
+overall <- sqlQuery(channel,"
+SELECT wf_model_id as Model, wf_status as Status, wf_start
+FROM wf_instance
+WHERE wf_status in ('I', 'R', 'A', 'P')
+")
+
+library(ggplot2)
+ggplot(overall, aes(factor(Model),fill=Status)) + geom_bar() + coord_flip()
+```
+
+
+#### Summary of Active instances
+```{r, echo=FALSE}
+df1 <- sqlQuery(channel,"
+SELECT wf_status, wf_start, wf_model_id
+FROM wf_instance
+WHERE wf_status in ('I', 'R', 'A', 'P')
+")
+
+summary(df1)
+
+```
+
+
+#### Active Instance Count Across the Years
+```{r xtable, echo=FALSE, results="asis"}
+df2 <- sqlQuery(channel,"
+SELECT
+    wf_model_id AS Model,
+    wf_status AS Status,
+    Count(
+        CASE
+            WHEN wf_start >= '2016-01-01' AND wf_start < '2017-01-01'
+                THEN wf_start
+            ELSE NULL
+        end
+    ) AS '2016',
+    Count(
+        CASE
+            WHEN wf_start >= '2015-01-01' AND wf_start < '2016-01-01'
+                THEN wf_start
+            ELSE NULL
+        end
+    ) AS '2015',
+    Count(
+        CASE
+            WHEN wf_start < '2015-01-01'
+                THEN wf_start
+            ELSE NULL
+        end
+    ) AS '2014 and later',
+    Count(wf_start) AS Total
+FROM   wf_instance
+WHERE  wf_status IN ('I', 'R', 'A', 'P')
+GROUP BY wf_model_id, wf_status
+ORDER BY wf_model_id, wf_status DESC;
+")
+
+print(pandoc.table(df2), type="html", include.rownames = F)
+```
+
+
+
+
+```{r, echo=FALSE}
+odbcClose(channel)
+```
