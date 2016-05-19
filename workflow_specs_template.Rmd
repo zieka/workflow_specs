@@ -4,108 +4,88 @@
 
 1. Workflow should have less than 500 instances in progress
     - Test:
-```sql
-SELECT count(*) 
-FROM wf_instance 
-WHERE wf_status in ('I', 'R', 'A', 'P')
-```
-
+    ```sql
+    SELECT count(*)
+    FROM wf_instance
+    WHERE wf_status in ('I', 'R', 'A', 'P')
+    ```
     - Expectation: test < 500
     - Result:
 
-
 2. Workflow should have no instances in progress that where started before one year ago
     - Test:
-```sql
-SELECT count(*) 
-FROM wf_instance 
-WHERE wf_start <= DATEADD(year, -1, GETDATE())
-and wf_status in ('I', 'R', 'A', 'P')
-```
-
-    - Expectation: test = 0 
+    ```sql
+    SELECT count(*)
+    FROM wf_instance
+    WHERE wf_start <= DATEADD(year, -1, GETDATE())
+    and wf_status in ('I', 'R', 'A', 'P')
+    ```
+    - Expectation: test = 0
     - Result:
-
-
 
 3. Workflow should have no in progress instances on inactive models
     - Test:
-```sql
-SELECT count(t2.unique_key)
-FROM
-    (SELECT wf_model_id, wf_version FROM wf_model WHERE wf_status <> 'A') AS t1
-    INNER JOIN
-    (SELECT * FROM wf_instance WHERE wf_status in ('I', 'R', 'A', 'P')) AS  t2
-    ON t1.wf_model_id = t2.wf_model_id
-WHERE t1.wf_version = t2.wf_version
-```
-
+    ```sql
+    SELECT count(t2.unique_key)
+    FROM
+      (SELECT wf_model_id, wf_version FROM wf_model WHERE wf_status <> 'A') AS t1
+      INNER JOIN
+      (SELECT * FROM wf_instance WHERE wf_status in ('I', 'R', 'A', 'P')) AS  t2
+      ON t1.wf_model_id = t2.wf_model_id
+      WHERE t1.wf_version = t2.wf_version
+    ```
     - Expectation: test = 0
     - Result:
-
-
 
 4. Workflow instances in progress should have at least one pending history record
     - Test:
-```sql
-SELECT count(*)
-FROM wf_instance
-WHERE wf_status = 'I'
-AND wf_key NOT IN (
-    SELECT DISTINCT wf_key
-    FROM wf_history
-    WHERE wf_status = 'P'
-)
-```
-
+    ```sql
+    SELECT count(*)
+    FROM wf_instance
+    WHERE wf_status = 'I'
+    AND wf_key NOT IN (
+      SELECT DISTINCT wf_key
+      FROM wf_history
+      WHERE wf_status = 'P'
+      )
+    ```
     - Expectation: test = 0
     - Result:
-
-
 
 5. Workflow Users should be enabled using 'Y' and not 'W'
     - Test:
-```sql
-select count(*)
-from us_usno_mstr
-where us_wf_enable like '%W%'
-```
-
+    ```sql
+    select count(*)
+    from us_usno_mstr
+    where us_wf_enable like '%W%'
+    ```
     - Expectation: test = 0
-    - Result: 
-
-
+    - Result:
 
 6. Users should have a default GL ledger
     - Test:
-```sql
-SELECT DISTINCT us_misc_flags11
-FROM us_usno_mstr
-```
-
+    ```sql
+    SELECT DISTINCT us_misc_flags11
+    FROM us_usno_mstr
+    ```
     - Expectation: test should not have null or blank value
     - Result:
 
-
-
 7. Users should have a default JL ledger
     - Test:
-```sql
-SELECT DISTINCT us_misc_flags12
-FROM us_usno_mstr
-```
-
+    ```sql
+    SELECT DISTINCT us_misc_flags12
+    FROM us_usno_mstr
+    ```
     - Expectation: test should not have nullor blank value
     - Result:
 
 8. There should only be one distinct workflow engine, 'NONE', and/or null.
     - Test:
-```sql
-SELECT DISTINCT wf_engine
-FROM wf_instance
-WHERE wf_status IN ('I', 'R', 'A', 'P')
-```
-
+    ```sql
+    SELECT DISTINCT wf_engine
+    FROM wf_instance
+    WHERE wf_status IN ('I', 'R', 'A', 'P')
+    ```
     - Expectation: test should only return one row with a server address
     - Result:
-
